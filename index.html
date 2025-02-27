@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Data Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            font-family: 'Poppins', sans-serif;
+            background: #121212;
+            color: white;
+            overflow: hidden;
+        }
+        #company-list {
+            width: 30%;
+            overflow-y: auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 2px 0 10px rgba(255, 255, 255, 0.1);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        #chart-container {
+            width: 70%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .company-item {
+            cursor: pointer;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+            transition: 0.3s;
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+        }
+        .company-item:hover {
+            background-color: rgba(255, 255, 255, 0.5);
+            color: #121212;
+        }
+        h2 {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+        canvas {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0px 4px 15px rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="company-list">
+        <h2>Companies</h2>
+    </div>
+    <div id="chart-container">
+        <canvas id="company-chart"></canvas>
+    </div>
+
+    <script>
+        async function fetchCSV() {
+            try {
+                const response = await fetch('https://raw.githubusercontent.com/shaktids/stock_app_test/main/dump.csv');
+                const csvText = await response.text();
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        processCSVData(results.data);
+                    }
+                });
+            } catch (error) {
+                console.error("Error fetching CSV:", error);
+            }
+        }
+
+        function processCSVData(data) {
+            const companyList = document.getElementById('company-list');
+            const companies = [...new Set(data.map(row => row.index_name))];
+            companies.forEach(company => {
+                const div = document.createElement('div');
+                div.classList.add('company-item');
+                div.textContent = company;
+                div.onclick = () => showChart(company, data);
+                companyList.appendChild(div);
+            });
+        }
+
+        function showChart(company, data) {
+            const filteredData = data.filter(row => row.index_name === company && row.index_date);
+            filteredData.sort((a, b) => new Date(a.index_date) - new Date(b.index_date));
+            const labels = filteredData.map(row => row.index_date);
+            const values = filteredData.map(row => parseFloat(row.closing_index_value) || 0);
+
+            const ctx = document.getElementById('company-chart').getContext('2d');
+            if (window.myChart) window.myChart.destroy();
+            window.myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `${company} Closing Values`,
+                        data: values,
+                        borderColor: '#00ffcc',
+                        borderWidth: 2,
+                        fill: true,
+                        backgroundColor: 'rgba(0, 255, 204, 0.2)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        fetchCSV();
+    </script>
+</body>
+</html>
